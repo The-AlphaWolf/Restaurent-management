@@ -209,3 +209,33 @@ def find_optimal_margin(
     summary = pd.DataFrame(rows)
     best_margin = float(summary.loc[summary["ml_total_cost"].idxmin(), "safety_margin"])
     return best_margin, summary
+
+
+def evaluate_prep_strategy(
+    df: pd.DataFrame,
+    menu_df: pd.DataFrame,
+    prep_col: str,
+    actual_col: str = "units_sold",
+) -> dict[str, float]:
+    """Score an arbitrary prep column (e.g. a quantile forecast) in units + INR.
+
+    Returns the achieved **service level** (fraction of rows where prep met
+    demand), total wasted/stockout units, and the total INR cost — so a
+    quantile-based prep can be compared apples-to-apples with the margin-based one.
+    """
+    waste, stockout = simulate_waste(df[actual_col], df[prep_col])
+    scored = df.assign(_waste=waste, _stockout=stockout).merge(
+        menu_df[["item_id", "selling_price", "food_cost"]], on="item_id", how="left"
+    )
+    margin = scored["selling_price"] - scored["food_cost"]
+    waste_cost = float((scored["_waste"] * scored["food_cost"]).sum())
+    stockout_cost = float((scored["_stockout"] * margin).sum())
+
+    return {
+        "service_level": float((df[actual_col] <= df[prep_col]).mean()),
+        "waste_units": float(waste.sum()),
+        "stockout_units": float(stockout.sum()),
+        "waste_cost": waste_cost,
+        "stockout_cost": stockout_cost,
+        "total_cost": waste_cost + stockout_cost,
+    }

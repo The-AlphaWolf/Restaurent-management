@@ -30,6 +30,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 from datasets import DATASETS, get_config, resolve  # noqa: E402
 from features import get_test_cutoff, preprocess_data  # noqa: E402
 from predict import predict_demand  # noqa: E402
+from quantile_model import predict_quantiles  # noqa: E402
 from waste_optimizer import evaluate_waste_reduction, find_optimal_margin  # noqa: E402
 
 FIG_DIR = resolve("reports/figures")
@@ -96,6 +97,51 @@ def _fig_cost(summary: pd.DataFrame, best_margin: float, source: str) -> str:
     return _save(fig, f"{source}_cost_curve.png")
 
 
+def _fig_interval(test: pd.DataFrame, menu: pd.DataFrame, source: str) -> str | None:
+    qbundle = _load_optional(source, "quantile_model")
+    if qbundle is None:
+        return None
+    qp = predict_quantiles(test, qbundle)
+    data = test[["item_id", "date"]].copy()
+    data["units_sold"] = test["units_sold"].to_numpy()
+    for q in (0.1, 0.5, 0.9):
+        data[f"q{int(q * 100)}"] = qp[q]
+    # Pick the highest-volume item for a legible chart.
+    top_item = data.groupby("item_id")["units_sold"].sum().idxmax()
+    d = data[data["item_id"] == top_item].sort_values("date").tail(60)
+    name = menu.loc[menu["item_id"] == top_item, "name"].iloc[0]
+
+    fig, ax = plt.subplots(figsize=(9, 4))
+    ax.fill_between(d["date"], d["q10"], d["q90"], color="#FF4B4B", alpha=0.2, label="P10–P90 band")
+    ax.plot(d["date"], d["q50"], color="#FF4B4B", label="Median (P50)")
+    ax.scatter(d["date"], d["units_sold"], color="#222", s=12, label="Actual", zorder=5)
+    ax.set(title=f"Prediction Interval — {name} ({source})", xlabel="Date", ylabel="Units")
+    ax.legend()
+    fig.autofmt_xdate()
+    return _save(fig, f"{source}_interval.png")
+
+
+def _fig_horizon(source: str) -> tuple[str, dict] | None:
+    ms = _load_optional(source, "multistep_model")
+    if ms is None:
+        return None
+    hz = ms["horizons"]
+    fig, ax = plt.subplots(figsize=(8, 4))
+    width = 0.4
+    ax.bar([h - width / 2 for h in hz], [ms["mae_by_horizon"][h] for h in hz], width, label="Model", color="#FF4B4B")
+    ax.bar([h + width / 2 for h in hz], [ms["baseline_mae_by_horizon"][h] for h in hz], width, label="Seasonal-naive", color="#999")
+    ax.set(title=f"Multi-step MAE by Horizon ({source})", xlabel="Days ahead", ylabel="MAE (units)")
+    ax.set_xticks(hz)
+    ax.legend()
+    fig.tight_layout()
+    return _save(fig, f"{source}_horizon.png"), ms
+
+
+def _load_optional(source: str, key: str):
+    path = resolve(get_config(source)[key])
+    return joblib.load(path) if os.path.exists(path) else None
+
+
 def _save(fig, filename: str) -> str:
     os.makedirs(FIG_DIR, exist_ok=True)
     path = os.path.join(FIG_DIR, filename)
@@ -130,6 +176,20 @@ def build_section(source: str) -> str | None:
     f_trade = _fig_tradeoff(summary, source)
     f_cost = _fig_cost(summary, best_margin, source)
 
+    # Optional sections (only if the extra models were trained).
+    f_interval = _fig_interval(test, menu, source)
+    horizon = _fig_horizon(source)
+    interval_block = f"\n### Prediction intervals\nQuantile regression gives a calibrated demand range; prepping at a percentile sets a service level directly.\n\n![Prediction interval]({f_interval})\n" if f_interval else ""
+    if horizon:
+        f_hz, ms = horizon
+        hz_impr = (ms["overall_baseline_mae"] - ms["overall_mae"]) / ms["overall_baseline_mae"] * 100
+        horizon_block = (
+            f"\n### 7-day-ahead forecasting\nA direct multi-step model forecasts each of the next 7 days from information known today. "
+            f"It stays **~{hz_impr:.0f}% better than the seasonal-naive baseline** across the whole horizon.\n\n![MAE by horizon]({f_hz})\n"
+        )
+    else:
+        horizon_block = ""
+
     m = bundle["metrics"]
     mae_impr = (m["baseline"]["mae"] - min(m["random_forest"]["mae"], m["gradient_boosting"]["mae"]))
     mae_pct = mae_impr / m["baseline"]["mae"] * 100
@@ -157,7 +217,7 @@ The safety-margin slider trades food waste against stockouts. Higher margins pre
 Minimising total rupee cost (waste ingredient cost + lost-margin on stockouts) selects a **{best_margin:.0%} safety margin**, cutting cost from **₹{best['baseline_total_cost']:,.0f}** (baseline) to **₹{best['ml_total_cost']:,.0f}** — a **{best['cost_savings_percent']:.0f}% saving** (₹{best['cost_savings']:,.0f}), with **{waste_metrics['waste_reduction_percent']:.0f}% less waste**.
 
 ![Cost curve]({f_cost})
-"""
+{interval_block}{horizon_block}"""
 
 
 def main() -> None:

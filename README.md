@@ -117,15 +117,23 @@ _(INR prices per item are defined in the menu; for the real visitor dataset an a
 ### 7. ✅ Validated on real data
 The exact same pipeline is run on **real daily restaurant visitor counts** (Recruit Restaurant, Japan — AirREGI POS). On genuinely messy real data the tuned model still **cuts forecast error ~23% vs the naive baseline** (MAE 9.25 → 7.16, R² 0.59). This proves the approach isn't overfit to a hand-crafted simulation. Switch between datasets live using the dashboard's sidebar selector.
 
+### 8. 📏 Prediction intervals & service levels
+A point forecast can't tell you *how much to prep to rarely run out*. [`quantile_model.py`](src/quantile_model.py) trains gradient-boosting models with the **pinball (quantile) loss** at P10/P50/P80/P90/P95. Prepping at the *q*-th quantile targets a service level of *q* — and it's **empirically calibrated**: on held-out data, prepping at P90 meets demand **~89%** of days (synthetic) / **~82%** (real). This replaces the heuristic safety margin with a statistically grounded one.
+
+### 9. 📅 Multi-step 7-day-ahead forecasting
+The one-day model relies on *yesterday's actuals*, which a manager planning a week doesn't have. [`multistep.py`](src/multistep.py) uses the **direct** strategy — one model predicts demand at day `t+h` from information known at day `t` (recent demand + the target day's calendar), with the horizon as a feature. Crucially, it **holds a ~27% (synthetic) / ~23% (real) MAE edge over a hard seasonal-naive baseline across the whole 7-day horizon** — accuracy barely decays with distance because demand is calendar-driven.
+
 ## 📸 Dashboard
 
 A Streamlit app ([`dashboard/app.py`](dashboard/app.py)) with a **dataset selector** (Synthetic / Real), sidebar navigation, and interactive Plotly charts:
 
 1. **Overview** — historical demand trends, category mix, per-item drill-down.
 2. **Predictions** — actual vs. predicted demand, per-category and per-item forecasts.
-3. **Waste Insights** — the optimizer, an interactive safety-margin slider, and top waste-reduction opportunities.
-4. **Cost Impact (INR)** — the ₹ cost-vs-margin curve, the cost-optimal margin, and a waste/stockout cost breakdown.
-5. **Model Performance** — metrics table, tuned hyperparameters, and the permutation feature-importance chart.
+3. **Prediction Intervals** — P10–P90 forecast band and a service-level-vs-cost table (quantile regression).
+4. **7-Day Forecast** — a rolling 7-day-ahead forecast plus MAE-by-horizon vs. the seasonal-naive baseline.
+5. **Waste Insights** — the optimizer, an interactive safety-margin slider, and top waste-reduction opportunities.
+6. **Cost Impact (INR)** — the ₹ cost-vs-margin curve, the cost-optimal margin, and a waste/stockout cost breakdown.
+7. **Model Performance** — metrics table, tuned hyperparameters, and the permutation feature-importance chart.
 
 > _Add screenshots here after running the app (replace the placeholders):_
 > ![Overview](https://via.placeholder.com/800x400?text=Overview+Screenshot)
@@ -141,11 +149,15 @@ cd Restaurent-management
 pip install -r requirements.txt
 
 python src/data_generation.py        # 1. generate the synthetic dataset
-python src/train.py                  # 2. train + tune on synthetic data
+python src/train.py                  # 2. train + tune the point model
+python src/quantile_model.py         # 3. train prediction-interval (quantile) models
+python src/multistep.py              # 4. train the 7-day-ahead forecaster
 
 # Optional — add the real dataset (downloads ~9 MB once, then subsamples):
-python src/prepare_real_data.py      # 3. fetch + prepare real restaurant data
-python src/train.py --source real    # 4. train + tune on real data
+python src/prepare_real_data.py                 # fetch + prepare real restaurant data
+python src/train.py --source real               # then repeat 2–4 with --source real
+python src/quantile_model.py --source real
+python src/multistep.py --source real
 
 python reports/generate_report.py    # 5. (optional) regenerate RESULTS.md + charts
 streamlit run dashboard/app.py       # 6. launch the dashboard
@@ -174,10 +186,9 @@ The pre-generated `data/` and `models/` files are committed, so the app runs imm
 
 ## 🔮 Future Improvements
 - **Live features**: integrate a weather forecast API for true forward-looking inputs.
-- **Multi-step forecasting**: predict a 7-day horizon at once instead of one day ahead.
-- **Prediction intervals**: quantile regression to prep at, say, the 80th demand percentile.
 - **Deep learning**: benchmark an LSTM / Temporal Fusion Transformer against the tree models.
 - **Per-item spoilage windows**: some ingredients keep for days — model shelf life, not just next-day waste.
+- **Probabilistic multi-step**: combine the two — quantile forecasts across the full 7-day horizon.
 
 ## 🗂️ Project Structure
 ```
@@ -186,10 +197,12 @@ The pre-generated `data/` and `models/` files are committed, so the app runs imm
 │   ├── data_generation.py   # synthetic data generator (INR menu)
 │   ├── prepare_real_data.py # fetch + adapt real Recruit Restaurant data
 │   ├── features.py          # feature engineering (lags, rolling, calendar) + split
-│   ├── train.py             # training, tuning, evaluation, model saving (--source)
+│   ├── train.py             # point model: training, tuning, evaluation (--source)
+│   ├── quantile_model.py    # prediction intervals (quantile regression)
+│   ├── multistep.py         # direct 7-day-ahead forecasting
 │   ├── predict.py           # load model + score new data
 │   └── waste_optimizer.py   # prep quantities, waste metrics, INR cost optimizer
-├── dashboard/app.py         # Streamlit app (dataset toggle, 5 sections)
+├── dashboard/app.py         # Streamlit app (dataset toggle, 7 sections)
 ├── reports/generate_report.py  # builds RESULTS.md + figures
 ├── tests/test_core.py       # pytest unit tests
 ├── data/                    # generated + real CSVs (committed for the live demo)
