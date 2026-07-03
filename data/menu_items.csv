@@ -1,0 +1,20 @@
+item_id,category,name,price
+ITEM_001,Mains,Grilled Salmon,25.0
+ITEM_002,Mains,Beef Burger,15.0
+ITEM_003,Mains,Mushroom Risotto,18.0
+ITEM_004,Mains,Chicken Caesar Salad,14.0
+ITEM_005,Mains,Steak Frites,28.0
+ITEM_006,Mains,Vegetarian Moussaka,16.0
+ITEM_007,Appetizers,Calamari,12.0
+ITEM_008,Appetizers,Bruschetta,9.0
+ITEM_009,Appetizers,French Onion Soup,8.0
+ITEM_010,Appetizers,Garlic Bread,6.0
+ITEM_011,Desserts,Cheesecake,8.0
+ITEM_012,Desserts,Chocolate Fondant,9.0
+ITEM_013,Desserts,Ice Cream Sundae,7.0
+ITEM_014,Desserts,Tiramisu,8.5
+ITEM_015,Beverages,Craft Beer,7.0
+ITEM_016,Beverages,House Red Wine,8.0
+ITEM_017,Beverages,House White Wine,8.0
+ITEM_018,Beverages,Lemonade,4.0
+ITEM_019,Beverages,Hot Coffee,3.5
