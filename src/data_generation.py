@@ -14,10 +14,13 @@ Outputs two CSV files in the `data/` directory:
 - `sales_data.csv`: Daily sales records per item.
 """
 
+from __future__ import annotations
+
 import os
-import pandas as pd
+from datetime import datetime
+
 import numpy as np
-from datetime import datetime, timedelta
+import pandas as pd
 
 # Set random seed for reproducibility
 np.random.seed(42)
@@ -27,34 +30,45 @@ START_DATE = datetime(2021, 1, 1)
 END_DATE = datetime(2023, 12, 31)
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 
+# Menu items: (name, selling_price_INR, base_popularity, seasonality_type).
+# Prices are realistic Indian casual-dining rupee values.
 MENU_CONFIG = {
     'Mains': [
-        ('Grilled Salmon', 25.0, 1.2, 'stable'),
-        ('Beef Burger', 15.0, 1.5, 'stable'),
-        ('Mushroom Risotto', 18.0, 1.0, 'winter_high'),
-        ('Chicken Caesar Salad', 14.0, 1.3, 'summer_high'),
-        ('Steak Frites', 28.0, 0.9, 'stable'),
-        ('Vegetarian Moussaka', 16.0, 0.8, 'stable')
+        ('Grilled Salmon', 650.0, 1.2, 'stable'),
+        ('Beef Burger', 280.0, 1.5, 'stable'),
+        ('Mushroom Risotto', 420.0, 1.0, 'winter_high'),
+        ('Chicken Caesar Salad', 350.0, 1.3, 'summer_high'),
+        ('Steak Frites', 720.0, 0.9, 'stable'),
+        ('Vegetarian Moussaka', 380.0, 0.8, 'stable')
     ],
     'Appetizers': [
-        ('Calamari', 12.0, 1.4, 'stable'),
-        ('Bruschetta', 9.0, 1.2, 'summer_high'),
-        ('French Onion Soup', 8.0, 1.5, 'winter_high'),
-        ('Garlic Bread', 6.0, 2.0, 'stable')
+        ('Calamari', 320.0, 1.4, 'stable'),
+        ('Bruschetta', 220.0, 1.2, 'summer_high'),
+        ('French Onion Soup', 240.0, 1.5, 'winter_high'),
+        ('Garlic Bread', 150.0, 2.0, 'stable')
     ],
     'Desserts': [
-        ('Cheesecake', 8.0, 1.0, 'stable'),
-        ('Chocolate Fondant', 9.0, 1.1, 'winter_high'),
-        ('Ice Cream Sundae', 7.0, 1.3, 'summer_high'),
-        ('Tiramisu', 8.5, 0.9, 'stable')
+        ('Cheesecake', 260.0, 1.0, 'stable'),
+        ('Chocolate Fondant', 290.0, 1.1, 'winter_high'),
+        ('Ice Cream Sundae', 180.0, 1.3, 'summer_high'),
+        ('Tiramisu', 270.0, 0.9, 'stable')
     ],
     'Beverages': [
-        ('Craft Beer', 7.0, 2.5, 'summer_high'),
-        ('House Red Wine', 8.0, 2.0, 'winter_high'),
-        ('House White Wine', 8.0, 1.8, 'summer_high'),
-        ('Lemonade', 4.0, 1.5, 'summer_high'),
-        ('Hot Coffee', 3.5, 2.0, 'winter_high')
+        ('Craft Beer', 350.0, 2.5, 'summer_high'),
+        ('House Red Wine', 450.0, 2.0, 'winter_high'),
+        ('House White Wine', 450.0, 1.8, 'summer_high'),
+        ('Lemonade', 120.0, 1.5, 'summer_high'),
+        ('Hot Coffee', 150.0, 2.0, 'winter_high')
     ]
+}
+
+# Food cost (COGS) as a fraction of selling price, per category. Beverages
+# have the fattest margins (lowest food cost); mains the thinnest.
+FOOD_COST_RATIO = {
+    'Mains': 0.35,
+    'Appetizers': 0.30,
+    'Desserts': 0.28,
+    'Beverages': 0.22,
 }
 
 HOLIDAYS = {
@@ -68,17 +82,19 @@ HOLIDAYS = {
 }
 
 
-def generate_menu_items():
+def generate_menu_items() -> pd.DataFrame:
     """Generates the menu items dataframe."""
     items = []
     item_id = 1
     for category, food_list in MENU_CONFIG.items():
-        for name, price, base_popularity, seasonality_type in food_list:
+        for name, selling_price, base_popularity, seasonality_type in food_list:
+            food_cost = round(selling_price * FOOD_COST_RATIO[category], 2)
             items.append({
                 'item_id': f'ITEM_{item_id:03d}',
                 'category': category,
                 'name': name,
-                'price': price,
+                'selling_price': selling_price,   # menu price in INR
+                'food_cost': food_cost,           # ingredient cost in INR (COGS)
                 'base_popularity': base_popularity,
                 'seasonality_type': seasonality_type
             })
@@ -86,7 +102,7 @@ def generate_menu_items():
     return pd.DataFrame(items)
 
 
-def generate_weather(dates):
+def generate_weather(dates: pd.DatetimeIndex) -> np.ndarray:
     """Generates synthetic temperature data based on a yearly sine wave."""
     # Assuming Northern Hemisphere: peak temp in July (day 200), lowest in Jan (day 15)
     days_of_year = dates.dayofyear
@@ -97,100 +113,103 @@ def generate_weather(dates):
     return temp
 
 
-def generate_sales_data(menu_df, start_date, end_date):
+def generate_sales_data(
+    menu_df: pd.DataFrame, start_date: datetime, end_date: datetime
+) -> pd.DataFrame:
     """Generates daily sales data per item."""
     dates = pd.date_range(start_date, end_date)
-    
+
     # 1. Generate general environmental features
     env_df = pd.DataFrame({'date': dates})
     env_df['temperature'] = generate_weather(dates)
     env_df['day_of_week'] = env_df['date'].dt.dayofweek
     env_df['month'] = env_df['date'].dt.month
     env_df['is_weekend'] = env_df['day_of_week'].isin([4, 5, 6]).astype(int) # Fri, Sat, Sun are busy
-    
+
     # Yearly trend: Linear growth factor starting at 1.0 and increasing by 10% each year
     total_days = len(dates)
     env_df['trend_factor'] = np.linspace(1.0, 1.3, total_days)
-    
+
     # Holidays
     env_df['is_holiday'] = 0
-    for holiday, (month, day) in HOLIDAYS.items():
+    for _holiday, (month, day) in HOLIDAYS.items():
         mask = (env_df['date'].dt.month == month) & (env_df['date'].dt.day == day)
         env_df.loc[mask, 'is_holiday'] = 1
-    
+
     sales_records = []
-    
+
     print(f"Generating data for {len(menu_df)} items over {total_days} days...")
-    
+
     for _, item in menu_df.iterrows():
         item_id = item['item_id']
         category = item['category']
         base_pop = item['base_popularity']
         seasonality = item['seasonality_type']
-        
+
         # Base demand scales with popularity
         daily_demand = np.full(total_days, 15.0 * base_pop)
-        
+
         # Apply weekly seasonality (Weekends & Fridays are busier)
         weekly_multiplier = np.where(env_df['is_weekend'] == 1, 1.5, 0.8)
         daily_demand *= weekly_multiplier
-        
+
         # Apply yearly seasonality based on item type
         if seasonality == 'summer_high':
             # Higher demand when temp is higher
-            temp_factor = 1.0 + (env_df['temperature'] - 55) / 100 
+            temp_factor = 1.0 + (env_df['temperature'] - 55) / 100
             daily_demand *= temp_factor
         elif seasonality == 'winter_high':
             # Higher demand when temp is lower
             temp_factor = 1.0 + (55 - env_df['temperature']) / 100
             daily_demand *= temp_factor
-            
+
         # Apply Holiday spikes
         # General bump on holidays
         daily_demand = np.where(env_df['is_holiday'] == 1, daily_demand * 1.3, daily_demand)
-        
+
         # Apply overall growth trend
         daily_demand *= env_df['trend_factor']
-        
+
         # Add random noise (Poisson-like distribution for count data)
         # We use a normal distribution for the mean, then draw from Poisson
         noise_factor = np.random.normal(1.0, 0.15, total_days)
         expected_demand = np.maximum(0, daily_demand * noise_factor)
-        
+
         # Final units sold is a Poisson draw to ensure integers and realistic variance
         units_sold = np.random.poisson(expected_demand)
-        
+
         # Create records for this item
         item_records = pd.DataFrame({
             'date': env_df['date'],
             'item_id': item_id,
             'category': category,
-            'price': item['price'],
+            'price': item['selling_price'],
             'temperature': env_df['temperature'],
             'is_weekend': env_df['is_weekend'],
             'is_holiday': env_df['is_holiday'],
             'units_sold': units_sold
         })
-        
+
         sales_records.append(item_records)
-        
+
     final_df = pd.concat(sales_records, ignore_index=True)
-    
+
     # Sort by date then item
     final_df = final_df.sort_values(by=['date', 'item_id']).reset_index(drop=True)
     return final_df
 
 
-def main():
+def main() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+
     print("Generating menu items...")
     menu_df = generate_menu_items()
     menu_path = os.path.join(OUTPUT_DIR, 'menu_items.csv')
     # Save menu items without the base_popularity and seasonality internal features
-    menu_df[['item_id', 'category', 'name', 'price']].to_csv(menu_path, index=False)
+    menu_cols = ['item_id', 'category', 'name', 'selling_price', 'food_cost']
+    menu_df[menu_cols].to_csv(menu_path, index=False)
     print(f"Saved {menu_path}")
-    
+
     print("Generating daily sales data...")
     sales_df = generate_sales_data(menu_df, START_DATE, END_DATE)
     sales_path = os.path.join(OUTPUT_DIR, 'sales_data.csv')

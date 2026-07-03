@@ -1,0 +1,31 @@
+item_id,category,name,selling_price,food_cost
+STORE_25,Cafe/Sweets,STORE_25 · Cafe/Sweets,400,140.0
+STORE_28,Okonomiyaki/Monja/Teppanyaki,STORE_28 · Okonomiyaki/Monja/Teppanyaki,800,280.0
+STORE_16,Italian/French,STORE_16 · Italian/French,1300,455.0
+STORE_11,Bar/Cocktail,STORE_11 · Bar/Cocktail,1000,350.0
+STORE_06,Dining bar,STORE_06 · Dining bar,1100,385.0
+STORE_30,Dining bar,STORE_30 · Dining bar,1100,385.0
+STORE_27,Dining bar,STORE_27 · Dining bar,1100,385.0
+STORE_04,Okonomiyaki/Monja/Teppanyaki,STORE_04 · Okonomiyaki/Monja/Teppanyaki,800,280.0
+STORE_14,Italian/French,STORE_14 · Italian/French,1300,455.0
+STORE_01,Izakaya,STORE_01 · Izakaya,900,315.0
+STORE_18,Cafe/Sweets,STORE_18 · Cafe/Sweets,400,140.0
+STORE_13,Izakaya,STORE_13 · Izakaya,900,315.0
+STORE_29,Bar/Cocktail,STORE_29 · Bar/Cocktail,1000,350.0
+STORE_10,Japanese food,STORE_10 · Japanese food,850,297.5
+STORE_19,Izakaya,STORE_19 · Izakaya,900,315.0
+STORE_12,Izakaya,STORE_12 · Izakaya,900,315.0
+STORE_07,Izakaya,STORE_07 · Izakaya,900,315.0
+STORE_21,Cafe/Sweets,STORE_21 · Cafe/Sweets,400,140.0
+STORE_17,Cafe/Sweets,STORE_17 · Cafe/Sweets,400,140.0
+STORE_22,Izakaya,STORE_22 · Izakaya,900,315.0
+STORE_08,Izakaya,STORE_08 · Izakaya,900,315.0
+STORE_20,Bar/Cocktail,STORE_20 · Bar/Cocktail,1000,350.0
+STORE_05,Bar/Cocktail,STORE_05 · Bar/Cocktail,1000,350.0
+STORE_09,Izakaya,STORE_09 · Izakaya,900,315.0
+STORE_23,Bar/Cocktail,STORE_23 · Bar/Cocktail,1000,350.0
+STORE_26,Cafe/Sweets,STORE_26 · Cafe/Sweets,400,140.0
+STORE_03,Bar/Cocktail,STORE_03 · Bar/Cocktail,1000,350.0
+STORE_02,Cafe/Sweets,STORE_02 · Cafe/Sweets,400,140.0
+STORE_24,Izakaya,STORE_24 · Izakaya,900,315.0
+STORE_15,Izakaya,STORE_15 · Izakaya,900,315.0
