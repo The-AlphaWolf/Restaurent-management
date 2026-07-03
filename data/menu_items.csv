@@ -1,20 +1,20 @@
-item_id,category,name,price
-ITEM_001,Mains,Grilled Salmon,25.0
-ITEM_002,Mains,Beef Burger,15.0
-ITEM_003,Mains,Mushroom Risotto,18.0
-ITEM_004,Mains,Chicken Caesar Salad,14.0
-ITEM_005,Mains,Steak Frites,28.0
-ITEM_006,Mains,Vegetarian Moussaka,16.0
-ITEM_007,Appetizers,Calamari,12.0
-ITEM_008,Appetizers,Bruschetta,9.0
-ITEM_009,Appetizers,French Onion Soup,8.0
-ITEM_010,Appetizers,Garlic Bread,6.0
-ITEM_011,Desserts,Cheesecake,8.0
-ITEM_012,Desserts,Chocolate Fondant,9.0
-ITEM_013,Desserts,Ice Cream Sundae,7.0
-ITEM_014,Desserts,Tiramisu,8.5
-ITEM_015,Beverages,Craft Beer,7.0
-ITEM_016,Beverages,House Red Wine,8.0
-ITEM_017,Beverages,House White Wine,8.0
-ITEM_018,Beverages,Lemonade,4.0
-ITEM_019,Beverages,Hot Coffee,3.5
+item_id,category,name,selling_price,food_cost
+ITEM_001,Mains,Grilled Salmon,650.0,227.5
+ITEM_002,Mains,Beef Burger,280.0,98.0
+ITEM_003,Mains,Mushroom Risotto,420.0,147.0
+ITEM_004,Mains,Chicken Caesar Salad,350.0,122.5
+ITEM_005,Mains,Steak Frites,720.0,252.0
+ITEM_006,Mains,Vegetarian Moussaka,380.0,133.0
+ITEM_007,Appetizers,Calamari,320.0,96.0
+ITEM_008,Appetizers,Bruschetta,220.0,66.0
+ITEM_009,Appetizers,French Onion Soup,240.0,72.0
+ITEM_010,Appetizers,Garlic Bread,150.0,45.0
+ITEM_011,Desserts,Cheesecake,260.0,72.8
+ITEM_012,Desserts,Chocolate Fondant,290.0,81.2
+ITEM_013,Desserts,Ice Cream Sundae,180.0,50.4
+ITEM_014,Desserts,Tiramisu,270.0,75.6
+ITEM_015,Beverages,Craft Beer,350.0,77.0
+ITEM_016,Beverages,House Red Wine,450.0,99.0
+ITEM_017,Beverages,House White Wine,450.0,99.0
+ITEM_018,Beverages,Lemonade,120.0,26.4
+ITEM_019,Beverages,Hot Coffee,150.0,33.0

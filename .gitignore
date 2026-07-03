@@ -29,6 +29,8 @@ env.bak/
 venv.bak/
 
 # Data and Models are intentionally tracked for Streamlit Cloud deployment
+# ...except the large raw Recruit download cache (regenerate via prepare_real_data.py)
+data/raw_recruit/
 
 # IDEs
 .idea/
