@@ -31,6 +31,16 @@ Minimising total rupee cost (waste ingredient cost + lost-margin on stockouts) s
 
 ![Cost curve](reports/figures/synthetic_cost_curve.png)
 
+### Prediction intervals
+Quantile regression gives a calibrated demand range; prepping at a percentile sets a service level directly.
+
+![Prediction interval](reports/figures/synthetic_interval.png)
+
+### 7-day-ahead forecasting
+A direct multi-step model forecasts each of the next 7 days from information known today. It stays **~27% better than the seasonal-naive baseline** across the whole horizon.
+
+![MAE by horizon](reports/figures/synthetic_horizon.png)
+
 
 ---
 
@@ -58,4 +68,14 @@ The safety-margin slider trades food waste against stockouts. Higher margins pre
 Minimising total rupee cost (waste ingredient cost + lost-margin on stockouts) selects a **15% safety margin**, cutting cost from **₹19,973,500** (baseline) to **₹8,521,480** — a **57% saving** (₹11,452,020), with **75% less waste**.
 
 ![Cost curve](reports/figures/real_cost_curve.png)
+
+### Prediction intervals
+Quantile regression gives a calibrated demand range; prepping at a percentile sets a service level directly.
+
+![Prediction interval](reports/figures/real_interval.png)
+
+### 7-day-ahead forecasting
+A direct multi-step model forecasts each of the next 7 days from information known today. It stays **~23% better than the seasonal-naive baseline** across the whole horizon.
+
+![MAE by horizon](reports/figures/real_horizon.png)
 

@@ -13,8 +13,15 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src'))
 
 from datasets import DATASETS, get_config, resolve
 from features import get_test_cutoff, preprocess_data
+from multistep import forecast_next_days
 from predict import predict_demand
-from waste_optimizer import evaluate_cost_impact, evaluate_waste_reduction, find_optimal_margin
+from quantile_model import predict_quantiles
+from waste_optimizer import (
+    evaluate_cost_impact,
+    evaluate_prep_strategy,
+    evaluate_waste_reduction,
+    find_optimal_margin,
+)
 
 st.set_page_config(page_title="Smart Restaurant Food Demand Prediction", layout="wide", page_icon="🍔")
 
@@ -38,6 +45,13 @@ def load_sales_menu(source: str):
 def load_model_bundle(source: str):
     model_path = resolve(get_config(source)['model'])
     return joblib.load(model_path) if os.path.exists(model_path) else None
+
+
+@st.cache_resource
+def load_bundle(source: str, key: str):
+    """Load an auxiliary model bundle ('quantile_model' or 'multistep_model')."""
+    path = resolve(get_config(source)[key])
+    return joblib.load(path) if os.path.exists(path) else None
 
 
 @st.cache_data
@@ -197,6 +211,93 @@ def render_cost_impact(test_data, menu_df):
                  use_container_width=True)
 
 
+def render_prediction_intervals(test_data, menu_df, qbundle):
+    st.header("🎯 Prediction Intervals & Service Levels")
+    if test_data is None or qbundle is None:
+        st.warning("Quantile model not found. Run `python src/quantile_model.py --source <src>`.")
+        return
+
+    st.write("Instead of a single number, **quantile regression** predicts a demand *range*. "
+             "Prepping at the *q*-th percentile is expected to meet demand on a fraction *q* of days "
+             "— a calibrated alternative to a guessed safety margin.")
+
+    q_preds = predict_quantiles(test_data, qbundle)
+    data = test_data[['item_id', 'date', 'units_sold']].copy()
+    for q in qbundle['quantiles']:
+        data[f'q{int(q * 100)}'] = q_preds[q]
+    data = data.merge(menu_df[['item_id', 'name']], on='item_id')
+
+    item = st.selectbox("Select an item", sorted(data['name'].unique()))
+    d = data[data['name'] == item].sort_values('date').tail(60)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=d['date'], y=d['q90'], line=dict(width=0), showlegend=False,
+                             hoverinfo='skip'))
+    fig.add_trace(go.Scatter(x=d['date'], y=d['q10'], fill='tonexty', name='P10–P90 band',
+                             fillcolor='rgba(255,75,75,0.20)', line=dict(width=0), hoverinfo='skip'))
+    fig.add_trace(go.Scatter(x=d['date'], y=d['q50'], name='Median (P50)', line=dict(color='#FF4B4B')))
+    fig.add_trace(go.Scatter(x=d['date'], y=d['units_sold'], name='Actual', mode='markers',
+                             marker=dict(color='#222', size=5)))
+    fig.update_layout(title=f"Forecast band (last 60 days): {item}", xaxis_title="Date", yaxis_title="Units")
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Service level vs cost, by prep quantile")
+    rows = []
+    for q in qbundle['quantiles']:
+        m = evaluate_prep_strategy(data, menu_df, f'q{int(q * 100)}')
+        rows.append({
+            'Prep at': f"P{int(q * 100)}",
+            'Target service level': q,
+            'Achieved service level': m['service_level'],
+            'Waste (units)': m['waste_units'],
+            'Total cost (₹)': m['total_cost'],
+        })
+    tbl = pd.DataFrame(rows)
+    st.dataframe(
+        tbl.style.format({'Target service level': '{:.0%}', 'Achieved service level': '{:.1%}',
+                          'Waste (units)': '{:,.0f}', 'Total cost (₹)': '₹{:,.0f}'}),
+        use_container_width=True,
+    )
+    st.caption("Achieved service level tracks the target — the quantile models are calibrated on real "
+               "held-out data. Higher percentiles rarely run out but waste (and cost) more.")
+
+
+def render_multistep(sales_df, menu_df, msbundle):
+    st.header("📅 7-Day-Ahead Forecast")
+    if msbundle is None:
+        st.warning("Multi-step model not found. Run `python src/multistep.py --source <src>`.")
+        return
+
+    st.write("A **direct multi-step** model forecasts each of the next 7 days from data known today "
+             "(recent demand + the target day's calendar) — what a manager needs to plan a week of prep.")
+
+    named = sales_df.merge(menu_df[['item_id', 'name']], on='item_id')
+    item_name = st.selectbox("Select an item", sorted(named['name'].unique()))
+    item_id = menu_df.loc[menu_df['name'] == item_name, 'item_id'].iloc[0]
+
+    forecast = forecast_next_days(sales_df, item_id, msbundle)
+    hist = named[named['name'] == item_name].sort_values('date').tail(21)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=hist['date'], y=hist['units_sold'], mode='lines+markers', name='Recent actuals'))
+    fig.add_trace(go.Scatter(x=forecast['target_date'], y=forecast['predicted_demand'],
+                             mode='lines+markers', name='7-day forecast', line=dict(dash='dash', color='#FF4B4B')))
+    fig.update_layout(title=f"Next 7 days: {item_name}", xaxis_title="Date", yaxis_title="Units")
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Forecast accuracy by horizon")
+    hz = msbundle['horizons']
+    fig2 = go.Figure()
+    fig2.add_trace(go.Bar(x=hz, y=[msbundle['mae_by_horizon'][h] for h in hz], name='Model'))
+    fig2.add_trace(go.Bar(x=hz, y=[msbundle['baseline_mae_by_horizon'][h] for h in hz], name='Seasonal-naive'))
+    fig2.update_layout(barmode='group', title="MAE by Days Ahead",
+                       xaxis_title="Days ahead", yaxis_title="MAE (units)")
+    st.plotly_chart(fig2, use_container_width=True)
+
+    improve = (msbundle['overall_baseline_mae'] - msbundle['overall_mae']) / msbundle['overall_baseline_mae'] * 100
+    st.caption(f"The model stays ~{improve:.0f}% better than the seasonal-naive baseline (same weekday "
+               "last week) across the whole 7-day horizon.")
+
+
 def render_model_performance(model_info):
     st.header("⚙️ Model Performance & Explainability")
     if model_info is None:
@@ -244,7 +345,10 @@ def main():
     source = st.sidebar.selectbox("Dataset", list(available), format_func=lambda s: available[s])
 
     st.sidebar.divider()
-    page = st.sidebar.radio("Go to", ["Overview", "Predictions", "Waste Insights", "Cost Impact", "Model Performance"])
+    page = st.sidebar.radio("Go to", [
+        "Overview", "Predictions", "Prediction Intervals", "7-Day Forecast",
+        "Waste Insights", "Cost Impact", "Model Performance",
+    ])
 
     sales_df, menu_df = load_sales_menu(source)
     st.sidebar.caption(f"{sales_df['item_id'].nunique()} items · "
@@ -253,17 +357,21 @@ def main():
     if page == "Overview":
         render_overview(sales_df, menu_df)
         return
+    if page == "7-Day Forecast":
+        render_multistep(sales_df, menu_df, load_bundle(source, "multistep_model"))
+        return
 
-    model_info = load_model_bundle(source)
     test_data = score_test_data(source)
     if page == "Predictions":
         render_predictions(test_data, menu_df)
+    elif page == "Prediction Intervals":
+        render_prediction_intervals(test_data, menu_df, load_bundle(source, "quantile_model"))
     elif page == "Waste Insights":
         render_waste_insights(test_data, menu_df)
     elif page == "Cost Impact":
         render_cost_impact(test_data, menu_df)
     elif page == "Model Performance":
-        render_model_performance(model_info)
+        render_model_performance(load_model_bundle(source))
 
 
 if __name__ == "__main__":

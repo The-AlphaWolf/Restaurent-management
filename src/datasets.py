@@ -27,6 +27,8 @@ DATASETS: dict[str, dict] = {
         "sales": "data/sales_data.csv",
         "menu": "data/menu_items.csv",
         "model": "models/best_model.pkl",
+        "quantile_model": "models/quantile_model.pkl",
+        "multistep_model": "models/multistep_model.pkl",
         # Fixed cutoff -> last ~6 months are the test set.
         "split_date": "2023-07-01",
         "test_fraction": None,
@@ -36,6 +38,8 @@ DATASETS: dict[str, dict] = {
         "sales": "data/real_sales_data.csv",
         "menu": "data/real_menu_items.csv",
         "model": "models/best_model_real.pkl",
+        "quantile_model": "models/quantile_model_real.pkl",
+        "multistep_model": "models/multistep_model_real.pkl",
         # Real data spans a different window -> split by the last 20% of dates.
         "split_date": None,
         "test_fraction": 0.2,

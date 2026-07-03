@@ -22,10 +22,18 @@ from data_generation import (  # noqa: E402
     generate_weather,
 )
 from features import create_features, get_test_cutoff, train_test_split_by_date  # noqa: E402
+from multistep import (  # noqa: E402
+    BASE_FEATURES,
+    _encode,
+    build_multistep_dataset,
+    forecast_next_days,
+)
 from predict import predict_demand  # noqa: E402
+from quantile_model import pinball_loss, predict_quantiles  # noqa: E402
 from waste_optimizer import (  # noqa: E402
     calculate_prep_quantity,
     evaluate_cost_impact,
+    evaluate_prep_strategy,
     evaluate_waste_reduction,
     find_optimal_margin,
     simulate_waste,
@@ -279,3 +287,98 @@ def test_build_canonical_maps_recruit_schema(monkeypatch):
     # INR economics are populated and internally consistent.
     assert (menu["food_cost"] < menu["selling_price"]).all()
     assert (menu["selling_price"] > 0).all()
+
+
+# --------------------------------------------------------------------------- #
+# Prediction intervals (quantile regression)
+# --------------------------------------------------------------------------- #
+class _FixedQuantileModel:
+    """Returns a constant prediction — lets us test the cross-fix deterministically."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def predict(self, X):
+        return np.full(len(X), self.value)
+
+
+def test_predict_quantiles_are_non_crossing_and_non_negative():
+    # Deliberately give the higher quantile a LOWER raw prediction to force a crossing.
+    bundle = {
+        "features": ["a"],
+        "quantiles": [0.1, 0.9],
+        "models": {0.1: _FixedQuantileModel(8.0), 0.9: _FixedQuantileModel(-3.0)},
+    }
+    df = pd.DataFrame({"a": [1, 2, 3]})
+    out = predict_quantiles(df, bundle)
+    assert out[0.1].shape == (3,)
+    # Clipped at 0 and re-sorted so P10 <= P90 on every row.
+    assert (out[0.9] >= out[0.1]).all()
+    assert (out[0.1] >= 0).all() and (out[0.9] >= 0).all()
+
+
+def test_pinball_loss_reduces_to_half_abs_error_at_median():
+    # For q=0.5 the pinball loss is 0.5 * mean(|error|).
+    assert pinball_loss([10, 20], [8, 24], 0.5) == 0.5 * np.mean([2, 4])
+
+
+def test_evaluate_prep_strategy_service_level_and_cost():
+    df = pd.DataFrame({
+        "item_id": ["ITEM_001"] * 4,
+        "units_sold": [10, 10, 10, 10],
+        "prep": [12, 9, 10, 15],  # meets demand on 3 of 4 rows
+    })
+    menu = pd.DataFrame({"item_id": ["ITEM_001"], "selling_price": [500.0], "food_cost": [175.0]})
+    m = evaluate_prep_strategy(df, menu, "prep")
+    assert m["service_level"] == 0.75          # prep >= demand on 3/4 rows
+    assert m["waste_units"] == 2 + 0 + 0 + 5   # over-prep on rows 1 and 4
+    assert m["stockout_units"] == 1            # under-prep of 1 on row 2
+    assert m["total_cost"] == m["waste_cost"] + m["stockout_cost"]
+
+
+# --------------------------------------------------------------------------- #
+# Multi-step (7-day) forecasting
+# --------------------------------------------------------------------------- #
+def _multi_series(days=40):
+    # Single item whose demand increments by 1 each day -> easy to reason about.
+    return pd.DataFrame({
+        "date": pd.date_range("2023-01-01", periods=days),
+        "item_id": ["ITEM_001"] * days,
+        "units_sold": range(10, 10 + days),
+        "is_holiday": 0,
+    })
+
+
+def test_build_multistep_dataset_targets_and_no_leakage():
+    ds = build_multistep_dataset(_multi_series(40), horizons=[1, 7])
+    assert {"target", "horizon", "o_demand", "o_lag6", "t_dow", "t_is_holiday"}.issubset(ds.columns)
+    # Demand increments by 1/day, so target at horizon h is o_demand + h,
+    # and o_lag6 (6 days before the origin) is o_demand - 6.
+    for _, row in ds.iterrows():
+        assert row["target"] == row["o_demand"] + row["horizon"]
+        assert row["o_lag6"] == row["o_demand"] - 6
+
+
+def test_encode_produces_horizon_and_item_features():
+    ds = build_multistep_dataset(_multi_series(30), horizons=[1, 2, 3])
+    encoded, features, codes = _encode(ds)
+    assert set(BASE_FEATURES).issubset(features)
+    assert "item_id_encoded" in features
+    assert codes["ITEM_001"] == 0
+
+
+def test_forecast_next_days_returns_full_horizon():
+    ds = build_multistep_dataset(_multi_series(30), horizons=[1, 2, 3])
+    _, features, codes = _encode(ds)
+    bundle = {
+        "model": _FixedQuantileModel(42.0),
+        "features": features,
+        "item_codes": codes,
+        "horizons": [1, 2, 3],
+    }
+    fc = forecast_next_days(_multi_series(30), "ITEM_001", bundle)
+    assert list(fc.columns) == ["target_date", "predicted_demand"]
+    assert len(fc) == 3
+    # Forecast dates are strictly increasing and start the day after the last origin.
+    assert fc["target_date"].is_monotonic_increasing
+    assert fc["target_date"].iloc[0] == pd.Timestamp("2023-01-30") + pd.Timedelta(days=1)
