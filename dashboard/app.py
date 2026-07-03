@@ -50,7 +50,7 @@ def render_overview(sales_df, menu_df):
     st.header("📈 Historical Sales Overview")
     
     # Merge for names
-    df = sales_df.merge(menu_df[['item_id', 'name', 'category']], on='item_id')
+    df = sales_df.merge(menu_df[['item_id', 'name']], on='item_id')
     
     col1, col2 = st.columns(2)
     with col1:
