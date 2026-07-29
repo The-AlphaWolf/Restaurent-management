@@ -30,3 +30,6 @@ jobs:
       - name: Run tests
         run: |
           pytest tests/ -q
+
+      - name: Self-check the in-browser forecaster
+        run: node docs/forecast.test.mjs

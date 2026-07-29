@@ -10,6 +10,8 @@
 
 🔗 **[Live results site →](https://the-alphawolf.github.io/Restaurent-management/)** — a static dashboard on GitHub Pages; every number on it is computed from the held-out test period by [`reports/build_site_data.py`](reports/build_site_data.py).
 
+🧪 **[Score your own data →](https://the-alphawolf.github.io/Restaurent-management/try.html)** — paste (or upload) your own `date,units` history and get a 7-day forecast, a one-week backtest against the seasonal-naive baseline, and the rupee-optimal prep quantity. Runs entirely in the browser; nothing is uploaded.
+
 📊 **[Full results report with charts →](RESULTS.md)** (auto-generated for both datasets)
 
 ---
@@ -182,12 +184,19 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs both on every p
 ## 🌐 Deployment
 
 ### Static results site (GitHub Pages) — live
-[`docs/`](docs/) is a dependency-free page (hand-rolled SVG charts, no build step, no
-runtime) served by GitHub Pages from `main`. Its data is regenerated from the committed
-models with:
-```bash
-python reports/build_site_data.py   # rewrites docs/data.json
-```
+[`docs/`](docs/) is dependency-free (hand-rolled SVG charts, no build step, no runtime)
+and served by GitHub Pages from `main`:
+
+- `index.html` — results from the trained models. Regenerate its data with:
+  ```bash
+  python reports/build_site_data.py   # rewrites docs/data.json
+  ```
+- `try.html` + `forecast.js` — visitors paste their own daily history and get a 7-day
+  forecast, a one-week backtest vs seasonal-naive, and the cost-optimal prep quantity.
+  The pickled tree ensembles are fit to *this* project's item encodings and cannot score
+  a stranger's series, so the page refits the same feature recipe (lag 1, lag 7, 7-day
+  rolling mean, day-of-week, trend) with ridge least squares in the browser — no server,
+  no upload. Self-check: `node docs/forecast.test.mjs` (runs in CI).
 
 ### Interactive dashboard (Streamlit Community Cloud)
 The pre-generated `data/` and `models/` files are committed, so the Streamlit app runs
@@ -215,7 +224,10 @@ with no build step.
 │   ├── predict.py           # load model + score new data
 │   └── waste_optimizer.py   # prep quantities, waste metrics, INR cost optimizer
 ├── dashboard/app.py         # Streamlit app (dataset toggle, 7 sections)
-├── docs/                    # static results site (GitHub Pages): index.html + data.json
+├── docs/                    # GitHub Pages site
+│   ├── index.html           #   results from the trained models (+ data.json)
+│   ├── try.html             #   score your own pasted data
+│   └── forecast.js          #   in-browser forecaster + waste/cost sweep (+ .test.mjs)
 ├── reports/generate_report.py  # builds RESULTS.md + figures
 ├── reports/build_site_data.py  # builds docs/data.json for the static site
 ├── tests/test_core.py       # pytest unit tests

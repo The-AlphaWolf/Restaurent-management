@@ -5,66 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Food Demand Prediction — Smart Restaurant Time-Series ML</title>
 <meta name="description" content="Forecasting daily restaurant demand and turning it into rupee-optimal prep quantities. Live results from the trained models.">
-<style>
-  :root{
-    --bg:#03100a; --panel:#06180f; --panel-2:#081e14;
-    --edge:rgba(62,242,154,.22);
-    --dim:#3f8f68; --mid:#6fd6a0; --hot:#3ef29a; --cyan:#2fd8cf; --warn:#f2c14e;
-    --font:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--mid);font-family:var(--font);
-       font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased}
-  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;
-       background:repeating-linear-gradient(180deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px);opacity:.5}
-  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
-  .frame{border:1px solid var(--edge);border-radius:14px;background:
-       radial-gradient(120% 90% at 50% 0%,rgba(62,242,154,.07),transparent 60%),var(--panel);
-       padding:14px;position:relative;overflow:hidden}
-  .frame::after{content:"";position:absolute;inset:0;pointer-events:none;
-       background-image:linear-gradient(rgba(62,242,154,.045) 1px,transparent 1px),
-                        linear-gradient(90deg,rgba(62,242,154,.045) 1px,transparent 1px);
-       background-size:34px 34px}
-  .topbar{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.18em;
-       color:var(--dim);text-transform:uppercase;margin-bottom:12px}
-  .topbar b{color:var(--hot);font-weight:400}
-  button.src{background:none;border:1px solid var(--edge);color:var(--dim);font:inherit;font-size:10px;
-       letter-spacing:.14em;padding:2px 8px;border-radius:4px;cursor:pointer;text-transform:uppercase}
-  button.src[aria-pressed="true"]{color:#03100a;background:var(--hot);border-color:var(--hot)}
-  .kpis{display:grid;grid-template-columns:repeat(4,1fr) 1.7fr;gap:10px}
-  .card{border:1px solid var(--edge);border-radius:9px;background:var(--panel-2);padding:9px 11px;position:relative;z-index:1}
-  .k-label{font-size:9px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
-  .k-val{font-size:26px;line-height:1.25;color:var(--hot);letter-spacing:-.01em}
-  .k-val.cyan{color:var(--cyan)} .k-sub{font-size:9px;color:var(--dim);letter-spacing:.08em}
-  .k-model{font-size:15px;color:var(--hot);word-break:break-word}
-  .panel{border:1px solid var(--edge);border-radius:9px;background:var(--panel-2);
-       padding:10px 12px 6px;margin-top:10px;position:relative;z-index:1}
-  .p-head{display:flex;justify-content:space-between;align-items:baseline;
-       font-size:9px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
-  .legend span{margin-left:12px} .legend i{font-style:normal;color:var(--hot)}
-  .legend i.dash{color:var(--cyan)}
-  .grid3{display:grid;grid-template-columns:1.15fr 1fr 1.1fr;gap:10px;margin-top:10px}
-  svg{display:block;width:100%;height:auto;overflow:visible}
-  .facts{border:1px solid var(--edge);border-radius:9px;background:var(--panel-2);padding:12px;
-       position:relative;z-index:1;font-size:11px}
-  .facts div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px dashed rgba(62,242,154,.12)}
-  .facts div:last-child{border:0} .facts b{color:var(--hot);font-weight:400;text-align:right}
-  .title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:16px;
-       position:relative;z-index:1}
-  .title h1{margin:0;font-size:34px;line-height:1;color:#eafff4;font-weight:600;letter-spacing:-.02em}
-  .title p{margin:5px 0 0;font-size:9px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase}
-  .title .mark{font-size:26px;color:#eafff4;letter-spacing:.12em;white-space:nowrap}
-  .links{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
-  .links a{color:var(--dim);text-decoration:none;border:1px solid var(--edge);border-radius:6px;
-       padding:5px 10px;font-size:10px;letter-spacing:.14em;text-transform:uppercase}
-  .links a:hover,.links a:focus-visible{color:#03100a;background:var(--hot);border-color:var(--hot)}
-  .note{margin:14px 2px 0;font-size:10px;color:var(--dim);letter-spacing:.06em}
-  @media (max-width:860px){
-    .kpis{grid-template-columns:repeat(2,1fr)} .kpis .card:last-child{grid-column:1/-1}
-    .grid3{grid-template-columns:1fr} .title{flex-direction:column;align-items:flex-start}
-    .title .mark{font-size:18px}
-  }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="wrap">
@@ -112,6 +53,7 @@
       <a href="https://github.com/The-AlphaWolf/Restaurent-management">Source</a>
       <a href="https://github.com/The-AlphaWolf/Restaurent-management/blob/main/RESULTS.md">Full results</a>
       <a href="https://github.com/The-AlphaWolf/Restaurent-management#-approach--key-decisions">Method</a>
+      <a href="try.html">Score your own data →</a>
     </div>
   </div>
   <p class="note" id="note">Every number on this page is computed from the held-out test period by <code>reports/build_site_data.py</code>.</p>
