@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Food Demand Prediction — Smart Restaurant Time-Series ML</title>
+<meta name="description" content="Forecasting daily restaurant demand and turning it into rupee-optimal prep quantities. Live results from the trained models.">
+<style>
+  :root{
+    --bg:#03100a; --panel:#06180f; --panel-2:#081e14;
+    --edge:rgba(62,242,154,.22);
+    --dim:#3f8f68; --mid:#6fd6a0; --hot:#3ef29a; --cyan:#2fd8cf; --warn:#f2c14e;
+    --font:ui-monospace,"SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--mid);font-family:var(--font);
+       font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;
+       background:repeating-linear-gradient(180deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px);opacity:.5}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 16px 40px}
+  .frame{border:1px solid var(--edge);border-radius:14px;background:
+       radial-gradient(120% 90% at 50% 0%,rgba(62,242,154,.07),transparent 60%),var(--panel);
+       padding:14px;position:relative;overflow:hidden}
+  .frame::after{content:"";position:absolute;inset:0;pointer-events:none;
+       background-image:linear-gradient(rgba(62,242,154,.045) 1px,transparent 1px),
+                        linear-gradient(90deg,rgba(62,242,154,.045) 1px,transparent 1px);
+       background-size:34px 34px}
+  .topbar{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.18em;
+       color:var(--dim);text-transform:uppercase;margin-bottom:12px}
+  .topbar b{color:var(--hot);font-weight:400}
+  button.src{background:none;border:1px solid var(--edge);color:var(--dim);font:inherit;font-size:10px;
+       letter-spacing:.14em;padding:2px 8px;border-radius:4px;cursor:pointer;text-transform:uppercase}
+  button.src[aria-pressed="true"]{color:#03100a;background:var(--hot);border-color:var(--hot)}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr) 1.7fr;gap:10px}
+  .card{border:1px solid var(--edge);border-radius:9px;background:var(--panel-2);padding:9px 11px;position:relative;z-index:1}
+  .k-label{font-size:9px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase}
+  .k-val{font-size:26px;line-height:1.25;color:var(--hot);letter-spacing:-.01em}
+  .k-val.cyan{color:var(--cyan)} .k-sub{font-size:9px;color:var(--dim);letter-spacing:.08em}
+  .k-model{font-size:15px;color:var(--hot);word-break:break-word}
+  .panel{border:1px solid var(--edge);border-radius:9px;background:var(--panel-2);
+       padding:10px 12px 6px;margin-top:10px;position:relative;z-index:1}
+  .p-head{display:flex;justify-content:space-between;align-items:baseline;
+       font-size:9px;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+  .legend span{margin-left:12px} .legend i{font-style:normal;color:var(--hot)}
+  .legend i.dash{color:var(--cyan)}
+  .grid3{display:grid;grid-template-columns:1.15fr 1fr 1.1fr;gap:10px;margin-top:10px}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .facts{border:1px solid var(--edge);border-radius:9px;background:var(--panel-2);padding:12px;
+       position:relative;z-index:1;font-size:11px}
+  .facts div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px dashed rgba(62,242,154,.12)}
+  .facts div:last-child{border:0} .facts b{color:var(--hot);font-weight:400;text-align:right}
+  .title{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:16px;
+       position:relative;z-index:1}
+  .title h1{margin:0;font-size:34px;line-height:1;color:#eafff4;font-weight:600;letter-spacing:-.02em}
+  .title p{margin:5px 0 0;font-size:9px;letter-spacing:.28em;color:var(--dim);text-transform:uppercase}
+  .title .mark{font-size:26px;color:#eafff4;letter-spacing:.12em;white-space:nowrap}
+  .links{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px}
+  .links a{color:var(--dim);text-decoration:none;border:1px solid var(--edge);border-radius:6px;
+       padding:5px 10px;font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+  .links a:hover,.links a:focus-visible{color:#03100a;background:var(--hot);border-color:var(--hot)}
+  .note{margin:14px 2px 0;font-size:10px;color:var(--dim);letter-spacing:.06em}
+  @media (max-width:860px){
+    .kpis{grid-template-columns:repeat(2,1fr)} .kpis .card:last-child{grid-column:1/-1}
+    .grid3{grid-template-columns:1fr} .title{flex-direction:column;align-items:flex-start}
+    .title .mark{font-size:18px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="frame">
+    <div class="topbar">
+      <span>SMART RESTAURANT / <b id="dataset">—</b></span>
+      <span>
+        <button class="src" data-src="synthetic" aria-pressed="true">synthetic</button>
+        <button class="src" data-src="real" aria-pressed="false">real</button>
+      </span>
+    </div>
+
+    <div class="kpis">
+      <div class="card"><div class="k-label">MAE</div><div class="k-val" id="mae">—</div><div class="k-sub" id="maeSub">units/day</div></div>
+      <div class="card"><div class="k-label">R²</div><div class="k-val" id="r2">—</div><div class="k-sub">held-out test</div></div>
+      <div class="card"><div class="k-label">WASTE</div><div class="k-val cyan" id="waste">—</div><div class="k-sub" id="wasteSub">vs max-prep</div></div>
+      <div class="card"><div class="k-label">HORIZON</div><div class="k-val" id="horizon">—</div><div class="k-sub" id="horizonSub">multi-step</div></div>
+      <div class="card"><div class="k-label">MODEL</div><div class="k-model" id="model">—</div><div class="k-sub" id="feats">—</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="p-head"><span>Daily demand — actual vs predicted</span>
+        <span class="legend"><span><i>—</i> actual</span><span><i class="dash">- -</i> predicted</span></span></div>
+      <svg id="lineChart" viewBox="0 0 900 210" role="img" aria-label="Daily total demand: actual versus predicted, with a 7-day forecast"></svg>
+    </div>
+
+    <div class="grid3">
+      <div class="panel">
+        <div class="p-head"><span>Demand by weekday / category</span></div>
+        <svg id="heat" viewBox="0 0 320 150" role="img" aria-label="Mean demand per weekday and menu category"></svg>
+      </div>
+      <div class="panel">
+        <div class="p-head"><span>Waste reduction / month</span></div>
+        <svg id="bars" viewBox="0 0 260 150" role="img" aria-label="Monthly waste reduction versus the baseline prep strategy"></svg>
+      </div>
+      <div class="facts" id="facts"></div>
+    </div>
+
+    <div class="title">
+      <div><h1>Food Demand Prediction</h1><p>Smart-restaurant time-series ML</p></div>
+      <div class="mark">FOOD—DEMAND</div>
+    </div>
+
+    <div class="links">
+      <a href="https://github.com/The-AlphaWolf/Restaurent-management">Source</a>
+      <a href="https://github.com/The-AlphaWolf/Restaurent-management/blob/main/RESULTS.md">Full results</a>
+      <a href="https://github.com/The-AlphaWolf/Restaurent-management#-approach--key-decisions">Method</a>
+    </div>
+  </div>
+  <p class="note" id="note">Every number on this page is computed from the held-out test period by <code>reports/build_site_data.py</code>.</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const W = 900, H = 210, PAD = {l: 34, r: 8, t: 10, b: 18};
+const svg = (tag, attrs) => {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+};
+const path = pts => pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+const tooltip = (el, text) => {                      // native SVG hover tooltip
+  const t = svg("title", {}); t.textContent = text; el.append(t); return el;
+};
+
+function lineChart(series, forecast) {
+  const el = $("lineChart"); el.replaceChildren();
+  const all = series.concat(forecast.map(f => ({date: f.date, actual: null, predicted: f.predicted})));
+  const vals = all.flatMap(d => [d.actual, d.predicted]).filter(v => v != null);
+  const lo = Math.min(...vals) * 0.92, hi = Math.max(...vals) * 1.06;
+  const x = i => PAD.l + i * (W - PAD.l - PAD.r) / (all.length - 1);
+  const y = v => H - PAD.b - (v - lo) / (hi - lo) * (H - PAD.t - PAD.b);
+
+  for (let g = 0; g <= 4; g++) {                       // horizontal gridlines + y labels
+    const v = lo + (hi - lo) * g / 4;
+    el.append(svg("line", {x1: PAD.l, x2: W - PAD.r, y1: y(v), y2: y(v),
+      stroke: "rgba(62,242,154,.10)", "stroke-width": 1}));
+    const t = svg("text", {x: 2, y: y(v) + 3, fill: "#3f8f68", "font-size": 8});
+    t.textContent = Math.round(v); el.append(t);
+  }
+  const cut = series.length - 1;
+  if (forecast.length) {                                // forecast region marker
+    el.append(svg("rect", {x: x(cut), y: PAD.t, width: W - PAD.r - x(cut), height: H - PAD.t - PAD.b,
+      fill: "rgba(47,216,207,.07)"}));
+    const t = svg("text", {x: x(cut) + 4, y: PAD.t + 8, fill: "#2fd8cf", "font-size": 8, "letter-spacing": 1.5});
+    t.textContent = "FORECAST"; el.append(t);
+  }
+  el.append(svg("path", {d: path(all.map((d, i) => [x(i), y(d.predicted)])),
+    fill: "none", stroke: "#2fd8cf", "stroke-width": 1.2, "stroke-dasharray": "4 3", opacity: .85}));
+  el.append(svg("path", {d: path(series.map((d, i) => [x(i), y(d.actual)])),
+    fill: "none", stroke: "#3ef29a", "stroke-width": 1.6}));
+
+  [0, Math.floor(all.length / 2), all.length - 1].forEach(i => {   // x labels
+    const t = svg("text", {x: x(i), y: H - 5, fill: "#3f8f68", "font-size": 8,
+      "text-anchor": i === 0 ? "start" : i === all.length - 1 ? "end" : "middle"});
+    t.textContent = all[i].date; el.append(t);
+  });
+}
+
+function heatmap(h) {
+  const el = $("heat"); el.replaceChildren();
+  if (!h.rows.length) return;
+  const x0 = 78, cellW = (320 - x0 - 4) / h.cols.length, cellH = Math.min(14, (150 - 22) / h.rows.length);
+  const max = Math.max(...h.values.flat()) || 1;
+  h.rows.forEach((row, r) => {
+    const label = svg("text", {x: 0, y: 18 + r * cellH + cellH * 0.72, fill: "#3f8f68", "font-size": 7});
+    label.textContent = row.length > 15 ? row.slice(0, 14) + "…" : row;
+    el.append(label);
+    h.values[r].forEach((v, c) => {
+      const rect = svg("rect", {x: x0 + c * cellW, y: 18 + r * cellH, width: cellW - 2, height: cellH - 2,
+        rx: 1.5, fill: "#3ef29a", "fill-opacity": (0.08 + 0.92 * v / max).toFixed(2)});
+      el.append(tooltip(rect, `${row} · ${h.cols[c]}: ${v}`));
+    });
+  });
+  h.cols.forEach((c, i) => {
+    const t = svg("text", {x: x0 + i * cellW + cellW / 2 - 1, y: 12, fill: "#3f8f68",
+      "font-size": 6.5, "text-anchor": "middle"});
+    t.textContent = c; el.append(t);
+  });
+}
+
+function bars(months) {
+  const el = $("bars"); el.replaceChildren();
+  if (!months.length) return;
+  const max = Math.max(...months.map(m => m.reduction), 1);
+  const bw = (260 - 10) / months.length;
+  months.forEach((m, i) => {
+    const h = Math.max(1, m.reduction / max * 108);
+    const rect = svg("rect", {x: 6 + i * bw, y: 122 - h, width: bw - 5, height: h, rx: 1.5, fill: "#2fd8cf"});
+    el.append(tooltip(rect, `${m.month}: ${m.reduction}% less waste`));
+    const t = svg("text", {x: 6 + i * bw + (bw - 5) / 2, y: 134, fill: "#3f8f68",
+      "font-size": 6, "text-anchor": "middle"});
+    t.textContent = m.month.slice(5); el.append(t);
+  });
+  const t = svg("text", {x: 6, y: 146, fill: "#3f8f68", "font-size": 6.5});
+  t.textContent = `PEAK ${max.toFixed(0)}% · MONTH (MM)`; el.append(t);
+}
+
+const inr = v => v >= 1e7 ? "₹" + (v / 1e7).toFixed(1) + "Cr" : "₹" + (v / 1e5).toFixed(1) + "L";
+
+function render(d) {
+  $("dataset").textContent = d.label;
+  $("mae").textContent = d.metrics.mae;
+  $("maeSub").textContent = `${d.metrics.mae_gain_pct}% under naive ${d.metrics.baseline_mae}`;
+  $("r2").textContent = d.metrics.r2;
+  $("waste").textContent = "−" + Math.round(d.metrics.waste_reduction_pct) + "%";
+  $("wasteSub").textContent = `at ${Math.round(d.metrics.optimal_margin * 100)}% safety margin`;
+  $("horizon").textContent = d.metrics.horizon_days + "d";
+  $("horizonSub").textContent = d.metrics.horizon_gain_pct
+    ? `${d.metrics.horizon_gain_pct}% under seasonal-naive` : "single-step";
+  $("model").textContent = d.model + " + lag/rolling features";
+  $("feats").textContent = d.top_features.join(" · ");
+  lineChart(d.series, d.forecast);
+  heatmap(d.heatmap);
+  bars(d.waste_by_month);
+  $("facts").replaceChildren(...[
+    ["cost saved", `${inr(d.metrics.baseline_cost - d.metrics.ml_cost)} (${Math.round(d.metrics.cost_saving_pct)}%)`],
+    ["baseline / ML cost", `${inr(d.metrics.baseline_cost)} → ${inr(d.metrics.ml_cost)}`],
+    ["MAPE / RMSE", `${d.metrics.mape}% / ${d.metrics.rmse}`],
+    ["history", `${d.facts.days} days · ${d.facts.items} items`],
+    ["rows / features", `${d.facts.rows.toLocaleString()} / ${d.facts.features}`],
+    ["test window", `${d.facts.test_from} → ${d.facts.test_to}`],
+    ["stack", "python · scikit-learn · streamlit"],
+  ].map(([k, v]) => {
+    const row = document.createElement("div");
+    row.append(document.createTextNode(k), Object.assign(document.createElement("b"), {textContent: v}));
+    return row;
+  }));
+}
+
+fetch("data.json").then(r => r.json()).then(all => {
+  const buttons = [...document.querySelectorAll("button.src")].filter(b => all[b.dataset.src]);
+  document.querySelectorAll("button.src").forEach(b => { if (!all[b.dataset.src]) b.remove(); });
+  const show = src => {
+    buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.src === src)));
+    render(all[src]);
+  };
+  buttons.forEach(b => b.addEventListener("click", () => show(b.dataset.src)));
+  show(buttons[0].dataset.src);
+}).catch(e => { $("note").textContent = "Could not load data.json — " + e.message; });
+</script>
+</body>
+</html>

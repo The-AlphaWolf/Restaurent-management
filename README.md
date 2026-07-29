@@ -8,7 +8,7 @@
 
 > **An end-to-end machine-learning system that forecasts daily per-item restaurant demand and turns those forecasts into concrete, rupee-optimal prep quantities — cutting food-waste cost by ~57–61% versus a cautious max-prep baseline. Validated on both a synthetic 3-year simulation *and* real daily restaurant data.**
 
-🔗 **[Live Demo (Streamlit Community Cloud)](#)** — _replace with your Streamlit Cloud URL after deploying (see [Deployment](#-deployment-to-streamlit-community-cloud))._
+🔗 **[Live results site →](https://the-alphawolf.github.io/Restaurent-management/)** — a static dashboard on GitHub Pages; every number on it is computed from the held-out test period by [`reports/build_site_data.py`](reports/build_site_data.py).
 
 📊 **[Full results report with charts →](RESULTS.md)** (auto-generated for both datasets)
 
@@ -78,9 +78,9 @@ Methodology that matters ([`src/train.py`](src/train.py)):
 
 | Model | MAE | RMSE | MAPE | R² |
 |---|---|---|---|---|
-| Naive baseline (last week) | 8.23 | 10.96 | 32.6% | 0.589 |
-| Random Forest ✅ *(selected)* | **6.06** | **8.04** | **24.8%** | **0.779** |
-| Gradient Boosting | 6.06 | 8.06 | 24.9% | 0.777 |
+| Naive baseline (last week) | 8.23 | 10.96 | 32.5% | 0.589 |
+| Random Forest | 6.07 | 8.07 | 24.9% | 0.777 |
+| Gradient Boosting ✅ *(selected)* | **6.06** | **8.06** | **25.0%** | **0.778** |
 
 **The tuned model cuts forecast error (MAE) by ~26% versus the naive baseline.** Top demand drivers by permutation importance: `rolling_mean_14`, `day_of_week`, `is_weekend`, `lag_7`.
 
@@ -135,9 +135,11 @@ A Streamlit app ([`dashboard/app.py`](dashboard/app.py)) with a **dataset select
 6. **Cost Impact (INR)** — the ₹ cost-vs-margin curve, the cost-optimal margin, and a waste/stockout cost breakdown.
 7. **Model Performance** — metrics table, tuned hyperparameters, and the permutation feature-importance chart.
 
-> _Add screenshots here after running the app (replace the placeholders):_
-> ![Overview](https://via.placeholder.com/800x400?text=Overview+Screenshot)
-> ![Waste Insights](https://via.placeholder.com/800x400?text=Waste+Optimizer+Screenshot)
+The same numbers are published as a static page (no server needed) at
+**[the-alphawolf.github.io/Restaurent-management](https://the-alphawolf.github.io/Restaurent-management/)**.
+
+![Actual vs predicted demand](reports/figures/synthetic_actual_vs_predicted.png)
+![Cost vs safety margin](reports/figures/synthetic_cost_curve.png)
 
 ## 🚀 Setup & Installation
 
@@ -177,12 +179,22 @@ ruff check .         # linting
 ```
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs both on every push/PR.
 
-## 🌐 Deployment to Streamlit Community Cloud
-The pre-generated `data/` and `models/` files are committed, so the app runs immediately with no build step.
-1. Push this repo to a **public** GitHub repository.
-2. Go to [share.streamlit.io](https://share.streamlit.io/) and sign in with GitHub.
-3. **New app** → select the repo/branch → set **Main file path** to `dashboard/app.py`.
-4. **Deploy**, then paste the resulting URL into the Live Demo link at the top of this README.
+## 🌐 Deployment
+
+### Static results site (GitHub Pages) — live
+[`docs/`](docs/) is a dependency-free page (hand-rolled SVG charts, no build step, no
+runtime) served by GitHub Pages from `main`. Its data is regenerated from the committed
+models with:
+```bash
+python reports/build_site_data.py   # rewrites docs/data.json
+```
+
+### Interactive dashboard (Streamlit Community Cloud)
+The pre-generated `data/` and `models/` files are committed, so the Streamlit app runs
+with no build step.
+1. Go to [share.streamlit.io](https://share.streamlit.io/) and sign in with GitHub.
+2. **New app** → select this repo/branch → set **Main file path** to `dashboard/app.py`.
+3. **Deploy**, then link the resulting URL here.
 
 ## 🔮 Future Improvements
 - **Live features**: integrate a weather forecast API for true forward-looking inputs.
@@ -203,7 +215,9 @@ The pre-generated `data/` and `models/` files are committed, so the app runs imm
 │   ├── predict.py           # load model + score new data
 │   └── waste_optimizer.py   # prep quantities, waste metrics, INR cost optimizer
 ├── dashboard/app.py         # Streamlit app (dataset toggle, 7 sections)
+├── docs/                    # static results site (GitHub Pages): index.html + data.json
 ├── reports/generate_report.py  # builds RESULTS.md + figures
+├── reports/build_site_data.py  # builds docs/data.json for the static site
 ├── tests/test_core.py       # pytest unit tests
 ├── data/                    # generated + real CSVs (committed for the live demo)
 ├── models/                  # best_model.pkl (synthetic) + best_model_real.pkl
