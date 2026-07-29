@@ -59,9 +59,7 @@ def _forecast(source: str) -> list[dict]:
 
 def _heatmap(test: pd.DataFrame, sales: pd.DataFrame) -> dict:
     """Mean units/day per (category, weekday) over the test period."""
-    cats = sales[["item_id", "category"]].drop_duplicates() if "category" in sales else None
-    if cats is None:
-        return {"rows": [], "cols": [], "values": []}
+    cats = sales[["item_id", "category"]].drop_duplicates()
     df = test[["date", "item_id", "units_sold"]].merge(cats, on="item_id", how="left")
     df["dow"] = df["date"].dt.dayofweek
     grid = df.groupby(["category", "dow"])["units_sold"].mean().unstack(fill_value=0.0)

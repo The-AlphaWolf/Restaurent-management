@@ -10,6 +10,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+import pytest
 
 # Make ``src`` importable when tests run from the repo root.
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
@@ -138,11 +139,8 @@ def test_predict_demand_shape_and_non_negative():
 def test_predict_demand_raises_on_missing_feature():
     df = pd.DataFrame({"a": [1, 2, 3]})
     info = {"model": _StubModel(), "features": ["a", "b"]}
-    try:
+    with pytest.raises(ValueError):
         predict_demand(df, info)
-        raise AssertionError("expected ValueError for missing feature")
-    except ValueError:
-        pass
 
 
 # --------------------------------------------------------------------------- #

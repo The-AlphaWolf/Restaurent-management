@@ -126,11 +126,10 @@ export function prepSweep(days, sellingPrice, foodCost) {
       cost: waste * foodCost + stockout * profit,
     });
   }
-  // Baseline a cautious kitchen actually runs: prep the last 14 days' max.
+  // Baseline a cautious kitchen actually runs: prep the window's max every day,
+  // which by construction never runs short — so its only cost is waste.
   const maxSeen = Math.max(...days.map(d => d.actual));
-  let bWaste = 0, bStock = 0;
-  for (const d of days) { bWaste += Math.max(0, maxSeen - d.actual); bStock += 0; }
-  const baselineCost = bWaste * foodCost + bStock * profit;
+  const baselineWaste = days.reduce((s, d) => s + (maxSeen - d.actual), 0);
   const best = rows.reduce((a, b) => (b.cost < a.cost ? b : a));
-  return { rows, best, baselineCost, baselineWaste: bWaste };
+  return { rows, best, baselineWaste, baselineCost: baselineWaste * foodCost };
 }

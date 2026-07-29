@@ -122,9 +122,7 @@ def generate_sales_data(
     # 1. Generate general environmental features
     env_df = pd.DataFrame({'date': dates})
     env_df['temperature'] = generate_weather(dates)
-    env_df['day_of_week'] = env_df['date'].dt.dayofweek
-    env_df['month'] = env_df['date'].dt.month
-    env_df['is_weekend'] = env_df['day_of_week'].isin([4, 5, 6]).astype(int) # Fri, Sat, Sun are busy
+    env_df['is_weekend'] = env_df['date'].dt.dayofweek.isin([4, 5, 6]).astype(int) # Fri, Sat, Sun are busy
 
     # Yearly trend: Linear growth factor starting at 1.0 and increasing by 10% each year
     total_days = len(dates)

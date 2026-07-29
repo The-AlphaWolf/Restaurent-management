@@ -42,14 +42,8 @@ def load_sales_menu(source: str):
 
 
 @st.cache_resource
-def load_model_bundle(source: str):
-    model_path = resolve(get_config(source)['model'])
-    return joblib.load(model_path) if os.path.exists(model_path) else None
-
-
-@st.cache_resource
 def load_bundle(source: str, key: str):
-    """Load an auxiliary model bundle ('quantile_model' or 'multistep_model')."""
+    """Load a model bundle ('model', 'quantile_model' or 'multistep_model')."""
     path = resolve(get_config(source)[key])
     return joblib.load(path) if os.path.exists(path) else None
 
@@ -61,7 +55,7 @@ def score_test_data(source: str):
     sales_path = resolve(cfg['sales'])
     if not os.path.exists(sales_path):
         return None
-    model_info = load_model_bundle(source)
+    model_info = load_bundle(source, "model")
     if model_info is None:
         return None
     processed = preprocess_data(sales_path)
@@ -371,7 +365,7 @@ def main():
     elif page == "Cost Impact":
         render_cost_impact(test_data, menu_df)
     elif page == "Model Performance":
-        render_model_performance(load_model_bundle(source))
+        render_model_performance(load_bundle(source, "model"))
 
 
 if __name__ == "__main__":
